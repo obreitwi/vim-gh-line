@@ -71,7 +71,7 @@ func! s:gh_exec_cmd(url)
         echom a:url
         return
     endif
-    let l:finalCmd = g:gh_open_command . a:url
+    let l:finalCmd = g:gh_open_command . '"' . a:url . '"'
     if g:gh_trace
         echom "vim-gh-line executing: " . l:finalCmd
     endif
@@ -130,7 +130,7 @@ func! s:gh_line(action, force_interactive) range
       let url = s:GoogleSrcUrl(remote_url) . '/+/' . commit . relative . '#' . lineNum
     elseif s:Bitbucket(remote_url)
       let lineRange = s:BitbucketLineRange(a:firstline, a:lastline, lineNum)
-      let url = s:BitBucketUrl(remote_url) . action . commit . relative . '#' . lineRange
+      let url = s:BitBucketUrl(remote_url) . action . relative . '?at=' . commit . '#' . lineRange
     elseif s:GitLab(remote_url)
       let lineRange = s:GitLabLineRange(a:firstline, a:lastline, lineNum)
       let url = s:GitLabUrl(remote_url) . action . commit . relative . '#' . lineRange
@@ -171,7 +171,7 @@ func! s:gh_repo() range
     elseif s:Bitbucket(remote_url)
       let url = s:BitBucketUrl(remote_url)
 
-      if remote_ref != "master"
+      if remote_ref != "main"
         let url_path = "/src/" . s:EscapedRemoteRef(remote_ref)
       endif
     elseif s:GitLab(remote_url)
@@ -225,7 +225,7 @@ func! s:Action(remote_url, action)
     if s:Github(a:remote_url)
       return '/blob/'
     elseif s:Bitbucket(a:remote_url)
-      return '/src/'
+      return '/browse'
     elseif s:GitLab(a:remote_url)
       return '/blob/'
     elseif s:Cgit(a:remote_url)
@@ -251,7 +251,7 @@ func! s:GoogleSrc(remote_url)
 endfunc
 
 func! s:Bitbucket(remote_url)
-  return match(a:remote_url, 'bitbucket.org') >= 0
+  return match(a:remote_url, 'bitbucket') >= 0
 endfunc
 
 func! s:GitLab(remote_url)
@@ -285,9 +285,9 @@ endfunc
 
 func! s:BitbucketLineRange(firstLine, lastLine, lineNum)
   if a:firstLine == a:lastLine
-    return '-' . a:lineNum
+    return a:lineNum
   else
-    return '-' . a:firstLine . ':' . a:lastLine
+    return a:firstLine . '-' . a:lastLine
   endif
 endfunc
 
@@ -357,8 +357,16 @@ func! s:BitBucketUrl(remote_url)
   let l:rv = s:TransformSSHToHTTPS(a:remote_url)
   let l:rv = s:StripNL(l:rv)
   let l:rv = s:StripSuffix(l:rv, '.git')
+
+  let l:parts = split(l:rv, '/')
+  let l:domain = l:parts[2]
+  let l:project = l:parts[-2]
+  let l:repo = l:parts[-1]
+
+  let l:rv = 'https://' . l:domain . '/projects/' . l:project . '/repos/' . l:repo
   " TODO: What does the following line do ?
   let l:rv = substitute(l:rv, '\(:\/\/\)\@<=.*@', '', '')
+  let l:rv = substitute(l:rv, '\<scm\>', 'projects', '')
 
   return l:rv
 endfunc
